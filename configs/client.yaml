@@ -1,0 +1,44 @@
+# netunnel 客户端配置示例
+#
+# 启动: netunnel client -c configs/client.yaml
+# 运行中在控制台输入 status 可查看状态，输入 quit 可优雅退出。
+
+# 服务端控制连接地址与端口。
+server_addr: 127.0.0.1
+server_port: 39
+
+# 接入令牌，需与服务端一致。
+token: ""
+
+# 客户端唯一标识，留空时使用主机名。
+# 同一标识的客户端重复启动时，后启动的会因服务端拒绝而直接退出。
+client_id: ""
+
+# 日志级别: debug / info / warn / error。
+log_level: info
+# 日志文件路径，留空输出到标准输出。配合 screen / nohup 常驻运行时建议配置。
+log_file: ""
+
+# 断线重连的基础间隔（秒），实际按指数退避，上限 30 秒。
+reconnect_interval: 5
+# 连接服务端的超时时间（秒）。
+dial_timeout: 10
+# 心跳发送间隔（秒），应显著小于服务端的 heartbeat_timeout。
+heartbeat_interval: 30
+# 建立工作连接的超时时间（秒）。
+work_conn_timeout: 10
+# UDP 隧道空闲超时时间（秒）。
+udp_idle_timeout: 60
+
+# 端口映射规则列表。
+#   name        规则名称，同一客户端内唯一
+#   type        tcp 或 udp
+#   local_ip    内网服务地址（从客户端视角可达）
+#   local_port  内网服务端口
+#   remote_port 服务端对外暴露的端口
+proxies:
+  - name: demo
+    type: tcp
+    local_ip: 127.0.0.1
+    local_port: 1011
+    remote_port: 1011

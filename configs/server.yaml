@@ -1,0 +1,28 @@
+# netunnel 服务端配置示例
+#
+# 启动: netunnel server -c configs/server.yaml
+# 运行中在控制台输入 status 可查看状态，输入 quit 可优雅退出。
+
+# 控制连接监听地址与端口，客户端需连接该端口。
+# 重复启动同一实例会因端口被占用而直接失败。
+bind_addr: 0.0.0.0
+bind_port: 39
+
+# 客户端接入令牌，需与客户端一致。留空表示不校验（不建议用于生产环境）。
+token: ""
+
+# 日志级别: debug / info / warn / error。
+log_level: info
+# 日志文件路径，留空输出到标准输出。配合 screen / nohup 常驻运行时建议配置。
+log_file: ""
+
+# 超过该时间未收到客户端任何控制报文即判定其离线（秒）。
+heartbeat_timeout: 90
+# 握手超时时间（秒）。
+handshake_timeout: 10
+# 等待客户端工作连接的超时时间（秒）。
+work_conn_timeout: 10
+# UDP 会话空闲超时时间（秒），超时后回收隧道资源。
+udp_idle_timeout: 60
+# 允许同时在线的客户端数量上限，0 表示不限制。
+max_clients: 0
