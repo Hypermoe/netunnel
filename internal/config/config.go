@@ -14,7 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"netunnel/internal/protocol"
+	"hypermoe/netunnel/internal/protocol"
 )
 
 // ServerConfig 是服务端配置。

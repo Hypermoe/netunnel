@@ -1,14 +1,19 @@
 // Package protocol 定义客户端与服务端之间的控制协议。
 //
-// 协议分层：
+// 每条连接的首个字节是连接类型标记（见 ConnTypeControl / ConnTypeWork），
+// 用于区分两种连接：
 //
-//  1. 握手阶段：所有报文均为 JSON，采用 4 字节大端长度前缀 + JSON 负载的帧格式
-//     （见 WriteMessage / ReadMessage）。
-//  2. 数据阶段：
-//     - TCP 代理：握手完成后工作连接直接进入裸流模式，双向复制原始字节。
-//     - UDP 代理：握手完成后工作连接进入定长帧模式，每个 UDP 数据报
-//     以 4 字节大端长度前缀 + 负载 的方式传输（见 WriteFrame / ReadFrame），
-//     以此在可靠的 TCP 隧道上保留数据报边界，实现 UDP 的可靠投递。
+//  1. 控制连接：处理登录、心跳与代理通知。客户端与服务端均配置令牌时，
+//     该连接使用令牌派生的密钥做 AES-GCM 加密（见 SecureConn），
+//     令牌不出现线路上，服务端以"能否解密登录报文"完成认证。
+//  2. 工作连接：传输被代理的业务数据，始终为明文。
+//     - TCP 代理：握手完成后进入裸流模式，双向复制原始字节。
+//     - UDP 代理：每个 UDP 数据报以 4 字节大端长度前缀 + 负载的帧格式
+//       传输（见 WriteFrame / ReadFrame），以此在可靠的 TCP 隧道上
+//       保留数据报边界，实现 UDP 的可靠投递。
+//
+// 握手与数据阶段的控制报文均为 JSON，采用 4 字节大端长度前缀 + JSON
+// 负载的帧格式（见 WriteMessage / ReadMessage）。
 package protocol
 
 import (
@@ -22,6 +27,22 @@ import (
 	"net"
 	"strconv"
 )
+
+// 连接类型标记（每条连接的首个字节）。
+const (
+	// ConnTypeControl 控制连接：处理登录、心跳与代理通知；配置令牌后该连接加密。
+	ConnTypeControl byte = 0x01
+	// ConnTypeWork 工作连接：传输被代理的业务数据，始终明文。
+	ConnTypeWork byte = 0x02
+)
+
+// WriteConnType 写入连接类型标记，作为连接的首个字节。
+func WriteConnType(w io.Writer, t byte) error {
+	if _, err := w.Write([]byte{t}); err != nil {
+		return fmt.Errorf("protocol: 写入连接类型标记失败: %w", err)
+	}
+	return nil
+}
 
 // 报文类型常量。
 const (

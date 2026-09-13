@@ -1,4 +1,4 @@
-module github.com/Hypermoe/netunnel
+module hypermoe/netunnel
 
 go 1.27.1
 

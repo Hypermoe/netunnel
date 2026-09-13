@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"netunnel/internal/log"
-	"netunnel/internal/netutil"
-	"netunnel/internal/protocol"
-	"netunnel/internal/stats"
+	"hypermoe/netunnel/internal/log"
+	"hypermoe/netunnel/internal/netutil"
+	"hypermoe/netunnel/internal/protocol"
+	"hypermoe/netunnel/internal/stats"
 )
 
 // proxy 表示服务端上的一条公网端口映射。

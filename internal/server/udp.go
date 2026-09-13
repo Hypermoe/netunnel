@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"netunnel/internal/log"
-	"netunnel/internal/netutil"
-	"netunnel/internal/protocol"
+	"hypermoe/netunnel/internal/log"
+	"hypermoe/netunnel/internal/netutil"
+	"hypermoe/netunnel/internal/protocol"
 )
 
 // udpEnqueueTimeout 是向会话出站队列投递数据报的最长等待时间。

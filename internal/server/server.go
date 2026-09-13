@@ -17,10 +17,10 @@ import (
 	"sync"
 	"time"
 
-	"netunnel/internal/config"
-	"netunnel/internal/log"
-	"netunnel/internal/stats"
-	"netunnel/internal/version"
+	"hypermoe/netunnel/internal/config"
+	"hypermoe/netunnel/internal/log"
+	"hypermoe/netunnel/internal/stats"
+	"hypermoe/netunnel/internal/version"
 )
 
 // sendTimeout 是向客户端投递控制报文的最长等待时间。

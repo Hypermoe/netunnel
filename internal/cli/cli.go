@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 
-	"netunnel/internal/version"
+	"hypermoe/netunnel/internal/version"
 )
 
 // usageText 是顶层帮助信息。

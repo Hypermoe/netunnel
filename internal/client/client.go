@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"netunnel/internal/config"
-	"netunnel/internal/log"
-	"netunnel/internal/netutil"
-	"netunnel/internal/protocol"
-	"netunnel/internal/stats"
-	"netunnel/internal/version"
+	"hypermoe/netunnel/internal/config"
+	"hypermoe/netunnel/internal/log"
+	"hypermoe/netunnel/internal/netutil"
+	"hypermoe/netunnel/internal/protocol"
+	"hypermoe/netunnel/internal/stats"
+	"hypermoe/netunnel/internal/version"
 )
 
 // 重连退避参数。
@@ -201,12 +201,30 @@ func (c *Client) connectAndServe() error {
 	if err != nil {
 		return fmt.Errorf("连接服务端 %s 失败: %w", addr, err)
 	}
+	// 保活需作用于原始 TCP 连接，须在后续包装之前设置。
+	netutil.SetKeepAlive(conn)
+
+	// 声明连接类型，服务端据此区分加密的控制连接与明文的工作连接。
+	if err := protocol.WriteConnType(conn, protocol.ConnTypeControl); err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("发送连接类型标记失败: %w", err)
+	}
+
+	// 配置了令牌时启用加密传输：令牌不再明文出现在线路上，改为两端
+	// 共享的预共享密钥，服务端以"能否解密登录报文"完成认证。
+	if c.cfg.Token != "" {
+		secure, err := protocol.NewSecureConn(conn, c.cfg.Token)
+		if err != nil {
+			_ = conn.Close()
+			return fmt.Errorf("初始化加密连接失败: %w", err)
+		}
+		conn = secure
+	}
 
 	// 登录阶段使用握手超时，避免服务端无响应时长时间挂起。
 	_ = conn.SetReadDeadline(time.Now().Add(c.cfg.DialDuration()))
 	login := &protocol.Message{
 		Type:     protocol.TypeLogin,
-		Token:    c.cfg.Token,
 		ClientID: c.cfg.ClientID,
 		Version:  version.Version,
 		Proxies:  c.proxySpecs(),
@@ -235,7 +253,6 @@ func (c *Client) connectAndServe() error {
 
 	// 登录成功，清除读超时并改由心跳维持链路存活。
 	_ = conn.SetReadDeadline(time.Time{})
-	netutil.SetKeepAlive(conn)
 
 	c.mu.Lock()
 	c.conn = conn

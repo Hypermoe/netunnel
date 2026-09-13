@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"text/tabwriter"
 
-	"netunnel/internal/client"
-	"netunnel/internal/config"
-	"netunnel/internal/log"
-	"netunnel/internal/server"
+	"hypermoe/netunnel/internal/client"
+	"hypermoe/netunnel/internal/config"
+	"hypermoe/netunnel/internal/log"
+	"hypermoe/netunnel/internal/server"
 )
 
 // 退出码约定。

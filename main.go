@@ -9,7 +9,7 @@ package main
 import (
 	"os"
 
-	"netunnel/internal/cli"
+	"hypermoe/netunnel/internal/cli"
 )
 
 func main() {

@@ -5,10 +5,10 @@ import (
 	"net"
 	"time"
 
-	"netunnel/internal/config"
-	"netunnel/internal/netutil"
-	"netunnel/internal/protocol"
-	"netunnel/internal/stats"
+	"hypermoe/netunnel/internal/config"
+	"hypermoe/netunnel/internal/netutil"
+	"hypermoe/netunnel/internal/protocol"
+	"hypermoe/netunnel/internal/stats"
 )
 
 // handleNewProxy 处理服务端下发的公网访问通知，按映射类型建立工作连接。
@@ -168,6 +168,12 @@ func (c *Client) openWorkConn(sessionID string) (net.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("连接服务端失败: %w", err)
 	}
+	netutil.SetKeepAlive(conn)
+	// 工作连接传输业务数据，始终明文，仅声明连接类型供服务端分派。
+	if err := protocol.WriteConnType(conn, protocol.ConnTypeWork); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("发送连接类型标记失败: %w", err)
+	}
 
 	req := &protocol.Message{Type: protocol.TypeNewWorkConn, SessionID: sessionID}
 	if err := protocol.WriteMessage(conn, req); err != nil {
@@ -187,6 +193,5 @@ func (c *Client) openWorkConn(sessionID string) (net.Conn, error) {
 	}
 
 	_ = conn.SetReadDeadline(time.Time{})
-	netutil.SetKeepAlive(conn)
 	return conn, nil
 }

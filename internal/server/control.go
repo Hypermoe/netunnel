@@ -4,14 +4,15 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
-	"netunnel/internal/log"
-	"netunnel/internal/netutil"
-	"netunnel/internal/protocol"
+	"hypermoe/netunnel/internal/log"
+	"hypermoe/netunnel/internal/netutil"
+	"hypermoe/netunnel/internal/protocol"
 )
 
 // client 表示一个已登录的客户端控制连接。
@@ -41,12 +42,40 @@ type pending struct {
 
 // handleConn 处理控制端口上的一条新连接。
 //
-// 通过首条报文区分连接类型：登录报文建立控制连接，工作连接报文
-// 则与之前登记的公网会话配对。
+// 通过首字节的连接类型标记区分连接：控制连接完成登录后建立长连接，
+// 工作连接则与之前登记的公网会话配对。
 func (s *Server) handleConn(conn net.Conn) {
 	netutil.SetKeepAlive(conn)
 	// 防止恶意或异常客户端占用连接而不发送任何报文。
 	_ = conn.SetReadDeadline(time.Now().Add(s.cfg.HandshakeDuration()))
+
+	// 首字节声明连接类型：控制连接在配置令牌后加密，工作连接始终明文。
+	var typ [1]byte
+	if _, err := io.ReadFull(conn, typ[:]); err != nil {
+		s.logger.Debugf("读取连接类型标记失败 (来源 %s): %v", conn.RemoteAddr(), err)
+		_ = conn.Close()
+		return
+	}
+	switch typ[0] {
+	case protocol.ConnTypeControl:
+		// 配置了令牌时要求加密：客户端必须持有相同令牌才能解密握手报文，
+		// 解密成功本身就完成了认证，因此登录报文中不再明文携带令牌。
+		if s.cfg.Token != "" {
+			secure, err := protocol.NewSecureConn(conn, s.cfg.Token)
+			if err != nil {
+				s.logger.Debugf("初始化加密连接失败 (来源 %s): %v", conn.RemoteAddr(), err)
+				_ = conn.Close()
+				return
+			}
+			conn = secure
+		}
+	case protocol.ConnTypeWork:
+		// 工作连接承载业务数据，不加密，直接进入明文报文读取。
+	default:
+		s.logger.Warnf("收到未知连接类型标记 %d (来源 %s)", typ[0], conn.RemoteAddr())
+		_ = conn.Close()
+		return
+	}
 
 	msg, err := protocol.ReadMessage(conn)
 	if err != nil {
@@ -70,11 +99,14 @@ func (s *Server) handleConn(conn net.Conn) {
 func (s *Server) handleLogin(conn net.Conn, msg *protocol.Message) {
 	remote := conn.RemoteAddr().String()
 
-	// 使用恒定时间比较，避免通过响应时间推断令牌。
-	if subtle.ConstantTimeCompare([]byte(msg.Token), []byte(s.cfg.Token)) != 1 {
-		s.logger.Warnf("客户端 %s 令牌校验失败", remote)
-		s.replyLoginError(conn, protocol.CodeAuthFailed, "令牌校验失败")
-		return
+	// 加密模式下，能成功解密登录报文即证明客户端持有相同令牌，无需再比对；
+	// 明文模式（未配置令牌）保留原有比对，保证空令牌时的行为不变。
+	if s.cfg.Token == "" {
+		if subtle.ConstantTimeCompare([]byte(msg.Token), []byte(s.cfg.Token)) != 1 {
+			s.logger.Warnf("客户端 %s 令牌校验失败", remote)
+			s.replyLoginError(conn, protocol.CodeAuthFailed, "令牌校验失败")
+			return
+		}
 	}
 
 	clientID := strings.TrimSpace(msg.ClientID)
